@@ -53,13 +53,12 @@ const searchCnjFlow = ai.defineFlow(
       size: '25', // Increased size from 10 to 25
     });
     const url = `${baseUrl}?${queryParams.toString()}`;
-
     const cnjSearchPortalUrl = `https://www.cnj.jus.br/busca-geral/?termo=${encodeURIComponent(input.query)}`;
-    const informationalResult: SearchResultItem = {
-      id: `cnj-info-${Date.now()}`,
+
+    const baseInformationalResult = {
+      id: `cnj-info-${Date.now()}-${Math.random()}`, // Added Math.random for better uniqueness
       title: `Consultar "${input.query}" no portal do CNJ`,
       source: 'CNJ DataJud',
-      description: `A busca na API do DataJud foi realizada. Se não encontrou resultados diretos ou precisa de uma pesquisa mais aprofundada, clique aqui para tentar sua busca diretamente no portal do CNJ. A API do DataJud é otimizada para consultas estruturadas e por tribunal.`,
       url: cnjSearchPortalUrl,
       type: 'Link para Portal de Busca',
       date: new Date().toLocaleDateString('pt-BR'),
@@ -76,8 +75,20 @@ const searchCnjFlow = ai.defineFlow(
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(`CNJ DataJud API error: ${response.status} ${response.statusText}`, errorBody);
-        return { results: [informationalResult] }; // Fallback to informational result
+        const status = response.status;
+        console.error(`CNJ DataJud API error for query "${input.query}": ${status} ${response.statusText}`, errorBody);
+        
+        let description = `Tentamos consultar a API do DataJud para "${input.query}", mas ocorreu um erro (código: ${status}).`;
+        if (status === 404) {
+          description += ` O recurso solicitado não foi encontrado na API. Isso pode indicar um problema com o endpoint da API ou sua consulta específica.`;
+        } else if (status === 401 || status === 403) {
+          description += ` Falha na autorização ao acessar a API. Verifique se a chave da API é válida e tem permissão para este serviço.`;
+        } else {
+          description += ` A API do DataJud pode estar temporariamente indisponível ou retornou um erro inesperado.`;
+        }
+        description += ` Você pode tentar sua busca diretamente no portal do CNJ.`;
+        
+        return { results: [{ ...baseInformationalResult, description }] };
       }
 
       const jsonResponse = await response.json();
@@ -102,21 +113,19 @@ const searchCnjFlow = ai.defineFlow(
             });
           }
         }
-        // If API returned results, but after filtering we have none (e.g. _source was missing), 
-        // it might be better to still offer the portal link.
         if (searchResults.length > 0) {
             return { results: searchResults };
         }
       }
       
       // No results from API or no usable items, return informational message
-      console.warn(`CNJ DataJud: No direct results for "${input.query}". Offering portal link.`);
-      return { results: [informationalResult] };
+      const description = `A busca por "${input.query}" na API do DataJud não retornou resultados diretos. Tente refinar sua busca ou utilize o link para pesquisar no portal do CNJ.`;
+      return { results: [{ ...baseInformationalResult, description }] };
 
-    } catch (error) {
-      console.error('Failed to fetch or parse CNJ DataJud data:', error);
-      return { results: [informationalResult] }; // Fallback to informational result on exception
+    } catch (error: any) {
+      console.error(`Failed to fetch or parse CNJ DataJud data for query "${input.query}":`, error);
+      const description = `Não foi possível conectar à API do DataJud (Erro: ${error.message || 'desconhecido'}). Você pode tentar sua busca diretamente no portal do CNJ.`;
+      return { results: [{ ...baseInformationalResult, description }] };
     }
   }
 );
-
