@@ -50,7 +50,7 @@ const searchCnjFlow = ai.defineFlow(
     const baseUrl = 'https://api-publica.datajud.cnj.jus.br/servico-de-consulta-processual/v2/consulta_processual';
     const queryParams = new URLSearchParams({
       query: input.query,
-      size: '10', // Limit the number of results
+      size: '25', // Increased size from 10 to 25
     });
     const url = `${baseUrl}?${queryParams.toString()}`;
 
@@ -59,7 +59,7 @@ const searchCnjFlow = ai.defineFlow(
       id: `cnj-info-${Date.now()}`,
       title: `Consultar "${input.query}" no portal do CNJ`,
       source: 'CNJ DataJud',
-      description: `A busca na API do DataJud foi realizada. Se não encontrou resultados diretos ou precisa de uma pesquisa mais aprofundada, clique aqui para tentar sua busca diretamente no portal do CNJ.`,
+      description: `A busca na API do DataJud foi realizada. Se não encontrou resultados diretos ou precisa de uma pesquisa mais aprofundada, clique aqui para tentar sua busca diretamente no portal do CNJ. A API do DataJud é otimizada para consultas estruturadas e por tribunal.`,
       url: cnjSearchPortalUrl,
       type: 'Link para Portal de Busca',
       date: new Date().toLocaleDateString('pt-BR'),
@@ -119,3 +119,4 @@ const searchCnjFlow = ai.defineFlow(
     }
   }
 );
+
