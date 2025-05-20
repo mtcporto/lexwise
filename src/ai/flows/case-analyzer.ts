@@ -21,7 +21,7 @@ export type AnalyzeCaseInput = z.infer<typeof AnalyzeCaseInputSchema>;
 const AnalyzeCaseOutputSchema = z.object({
   relevantPoints: z
     .string()
-    .describe('The relevant points extracted from the case description.'),
+    .describe('The relevant points extracted from the case description, in Brazilian Portuguese.'),
 });
 export type AnalyzeCaseOutput = z.infer<typeof AnalyzeCaseOutputSchema>;
 
@@ -34,10 +34,11 @@ const prompt = ai.definePrompt({
   input: {schema: AnalyzeCaseInputSchema},
   output: {schema: AnalyzeCaseOutputSchema},
   prompt: `You are a legal assistant. Your task is to analyze the case description provided and extract the relevant points.
+Respond EXCLUSIVELY in Brazilian Portuguese (pt-BR).
 
 Case Description: {{{caseDescription}}}
 
-Relevant Points:`,
+Relevant Points (in Brazilian Portuguese):`,
 });
 
 const analyzeCaseFlow = ai.defineFlow(
@@ -51,3 +52,4 @@ const analyzeCaseFlow = ai.defineFlow(
     return output!;
   }
 );
+
