@@ -21,7 +21,7 @@ export type PredictCounterargumentsInput = z.infer<typeof PredictCounterargument
 const PredictCounterargumentsOutputSchema = z.object({
   counterarguments: z
     .array(z.string())
-    .describe('A list of potential counterarguments based on laws and jurisprudence.'),
+    .describe('A list of potential counterarguments based on laws and jurisprudence, in Brazilian Portuguese.'),
 });
 export type PredictCounterargumentsOutput = z.infer<typeof PredictCounterargumentsOutputSchema>;
 
@@ -38,8 +38,11 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI legal assistant specializing in predicting counterarguments.
 
   Given the following case description, identify potential counterarguments that could be made based on relevant laws and jurisprudence. Provide a list of these counterarguments.
+  Respond EXCLUSIVELY in Brazilian Portuguese (pt-BR).
 
-  Case Description: {{{caseDescription}}}`,
+  Case Description: {{{caseDescription}}}
+
+  Potential Counterarguments (in Brazilian Portuguese):`,
 });
 
 const predictCounterargumentsFlow = ai.defineFlow(
