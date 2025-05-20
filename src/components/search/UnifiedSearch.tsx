@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SearchResultCard, type SearchResultItem } from "./SearchResultCard";
@@ -8,43 +9,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Search as SearchIcon, Loader2, AlertTriangle, Info } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { searchLexml, type LexmlSearchInput } from "@/ai/flows/lexml-search-flow";
 
-// Mock data - replace with actual API calls
-const mockResults: SearchResultItem[] = [
+// Mock data for sources other than LexML (if needed in future)
+const mockOtherResults: SearchResultItem[] = [
   {
-    id: "1",
-    title: "Lei Complementar nº 101/2000 (Lei de Responsabilidade Fiscal)",
+    id: "senado-1",
+    title: "Lei Complementar nº 101/2000 (LRF) - Exemplo Senado",
     source: "Senado Federal",
-    description: "Estabelece normas de finanças públicas voltadas para a responsabilidade na gestão fiscal e dá outras providências.",
+    description: "Exemplo: Estabelece normas de finanças públicas voltadas para a responsabilidade na gestão fiscal.",
     url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp101.htm",
     type: "Lei Complementar",
     date: "04/05/2000",
   },
   {
-    id: "2",
-    title: "PL 2630/2020 - Lei das Fake News",
+    id: "camara-1",
+    title: "PL 2630/2020 - Exemplo Câmara",
     source: "Câmara dos Deputados",
-    description: "Institui a Lei Brasileira de Liberdade, Responsabilidade e Transparência na Internet.",
+    description: "Exemplo: Institui a Lei Brasileira de Liberdade, Responsabilidade e Transparência na Internet.",
     url: "https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=2256750",
     type: "Projeto de Lei",
     date: "2020",
-  },
-  {
-    id: "3",
-    title: "Estatísticas de Processos - TJSP",
-    source: "CNJ DataJud",
-    description: "Dados estatísticos sobre o volume e classes de processos no Tribunal de Justiça de São Paulo.",
-    url: "https://datajud-wiki.cnj.jus.br/api-publica/",
-    type: "Dados Estatísticos",
-  },
-  {
-    id: "4",
-    title: "Constituição Federal de 1988",
-    source: "LexML Brasil",
-    description: "Texto integral da Constituição da República Federativa do Brasil de 1988.",
-    url: "http://www.lexml.gov.br/urn/urn:lex:br:federal:constituicao:1988-10-05;1988",
-    type: "Constituição",
-    date: "05/10/1988",
   },
 ];
 
@@ -60,25 +45,52 @@ export function UnifiedSearch() {
     event.preventDefault();
     if (!searchTerm.trim()) {
       setError("Por favor, insira um termo de busca.");
+      setResults([]);
+      setSearched(true);
       return;
     }
     
     setIsLoading(true);
     setError(null);
     setSearched(true);
+    setResults([]); // Clear previous results
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      let fetchedResults: SearchResultItem[] = [];
+      if (dataSource === "lexml" || dataSource === "all") {
+        const input: LexmlSearchInput = { query: searchTerm };
+        const lexmlOutput = await searchLexml(input);
+        fetchedResults = [...fetchedResults, ...lexmlOutput.results];
+      }
+      
+      // Placeholder for other data sources when "all" is selected or they are specifically chosen
+      if (dataSource === "all") {
+        // You could merge with other mock/real sources here
+        // For now, mockOtherResults are not actively filtered by searchTerm if 'all' and LexML is used
+        // fetchedResults = [...fetchedResults, ...mockOtherResults.filter(r => dataSource === "all" || r.source.toLowerCase().replace(/\s+/g, '').includes(dataSource.toLowerCase()))];
+      } else if (dataSource !== "lexml") {
+        // For specific sources not yet implemented, show mock or empty
+         const mockForSource = mockOtherResults.filter(r => r.source.toLowerCase().replace(/\s+/g, '').includes(dataSource.toLowerCase()));
+         fetchedResults = mockForSource.filter(r => r.title.toLowerCase().includes(searchTerm.toLowerCase()) || r.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // Filter mock results based on search term (simple includes check) and data source
-    const filteredResults = mockResults.filter(result => 
-      (result.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       result.description.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (dataSource === "all" || result.source.toLowerCase().replace(/\s+/g, '').includes(dataSource.toLowerCase()))
-    );
-    
-    setResults(filteredResults);
-    setIsLoading(false);
+        if (fetchedResults.length === 0 && mockForSource.length > 0) {
+            // If mock data for the source exists but doesn't match term
+             // setError(`Nenhum resultado encontrado em ${dataSource} para "${searchTerm}".`);
+        } else if (mockForSource.length === 0) {
+            // If no mock data/implementation for the source
+            // setError(`Busca em ${dataSource} ainda não implementada.`);
+        }
+      }
+      
+      setResults(fetchedResults);
+
+    } catch (e) {
+      console.error("Search error:", e);
+      setError("Ocorreu um erro ao realizar a busca. Tente novamente.");
+      setResults([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -87,7 +99,7 @@ export function UnifiedSearch() {
         <CardHeader>
           <CardTitle className="text-2xl">Pesquisa Jurídica Unificada</CardTitle>
           <CardDescription>
-            Busque em leis, projetos, jurisprudência (estatísticas) e mais, em diversas fontes públicas.
+            Busque em leis, projetos, jurisprudência e mais. A busca no LexML Brasil está ativa. Outras fontes podem usar dados de exemplo.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -106,10 +118,10 @@ export function UnifiedSearch() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as Fontes</SelectItem>
-                <SelectItem value="senado">Senado Federal</SelectItem>
-                <SelectItem value="camara">Câmara dos Deputados</SelectItem>
-                <SelectItem value="cnj">CNJ DataJud</SelectItem>
                 <SelectItem value="lexml">LexML Brasil</SelectItem>
+                <SelectItem value="senado">Senado Federal (Exemplo)</SelectItem>
+                <SelectItem value="camara">Câmara dos Deputados (Exemplo)</SelectItem>
+                <SelectItem value="cnj">CNJ DataJud (Exemplo)</SelectItem>
               </SelectContent>
             </Select>
             <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
@@ -145,6 +157,7 @@ export function UnifiedSearch() {
           <AlertTitle>Nenhum Resultado Encontrado</AlertTitle>
           <AlertDescription>
             Tente refinar seus termos de busca ou selecionar outra fonte de dados.
+            A busca no LexML foi realizada. Para outras fontes, os resultados são exemplos ou a integração pode não estar completa.
           </AlertDescription>
         </Alert>
       )}
@@ -164,11 +177,12 @@ export function UnifiedSearch() {
            <Info className="h-4 w-4 text-primary" />
            <AlertTitle className="text-primary">Comece sua pesquisa</AlertTitle>
            <AlertDescription>
-             Utilize o campo de busca acima para encontrar informações legais relevantes. 
-             A busca atual é uma simulação e retornará dados de exemplo.
+             Utilize o campo de busca acima. A busca no LexML Brasil está integrada.
+             Outras fontes podem retornar dados de exemplo ou demonstrativos.
            </AlertDescription>
          </Alert>
       )}
     </div>
   );
 }
+
